@@ -2,7 +2,11 @@ import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
-import { provisionWorkspace } from "../src/index.js";
+import {
+  provisionWorkspace,
+  type WorkspaceVcsDriver,
+  type WorkspaceVcsDriverProvider,
+} from "../src/index.js";
 import { listBranches, runGit } from "../src/git.js";
 
 const tempDirs: string[] = [];
@@ -108,6 +112,44 @@ describe("provisionWorkspace", () => {
           path: "/tmp/does-not-exist-bb",
         }),
       ).rejects.toThrow(/does not exist/u);
+    });
+
+    it("selects a supplied VCS driver before the built-in Git driver", async () => {
+      const repoPath = await initRepo();
+      const gitWorkspace = await provisionWorkspace({ path: repoPath });
+      const customDriver: WorkspaceVcsDriver = {
+        kind: "custom",
+        isRepository: true,
+        isWorktree: false,
+        getDefaultBranch: () => Promise.resolve("custom-trunk"),
+        getCurrentBranch: () => Promise.resolve("custom-change"),
+        getHeadSha: () => gitWorkspace.getHeadSha(),
+        getLocalStateFingerprint: () => gitWorkspace.getLocalStateFingerprint(),
+        getSharedRefsFingerprint: () =>
+          gitWorkspace.getSharedGitRefsFingerprint(),
+        getAdditionalWorkspaceWriteRoots: () => Promise.resolve([]),
+        getStatus: (options) => gitWorkspace.getStatus(options),
+        getDiff: (options) => gitWorkspace.getDiff(options),
+        diffFiles: (args) => gitWorkspace.diffFiles(args),
+        diffPatch: (args) => gitWorkspace.diffPatch(args),
+        getPullRequest: (options) => gitWorkspace.getPullRequest(options),
+        runPullRequestAction: (action, options) =>
+          gitWorkspace.runPullRequestAction(action, options),
+        commit: (options) => gitWorkspace.commit(options),
+      };
+      const customProvider: WorkspaceVcsDriverProvider = {
+        kind: "custom",
+        open: () => Promise.resolve(customDriver),
+      };
+
+      const workspace = await provisionWorkspace({
+        path: repoPath,
+        additionalVcsDrivers: [customProvider],
+      });
+
+      expect(workspace.isGitRepo).toBe(false);
+      expect(await workspace.getCurrentBranch()).toBe("custom-change");
+      expect(await workspace.getDefaultBranch()).toBe("custom-trunk");
     });
   });
 
