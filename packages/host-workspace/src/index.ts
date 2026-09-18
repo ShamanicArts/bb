@@ -1,5 +1,10 @@
 export { provisionWorkspace } from "./provision.js";
 export type { HostWorkspace, ProvisionWorkspaceArgs } from "./provision.js";
+export type {
+  WorkspaceVcsDriver,
+  WorkspaceVcsDriverOpenOptions,
+  WorkspaceVcsDriverProvider,
+} from "./workspace-vcs-driver.js";
 
 export type { PullRequestActionOptions } from "./workspace.js";
 export { withGitRefMutationLock } from "bb-environment-provider-host/process-local-lock";
