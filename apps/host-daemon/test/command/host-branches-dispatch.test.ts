@@ -1,3 +1,4 @@
+import { spawnSync } from "node:child_process";
 import fs from "node:fs/promises";
 import path from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
@@ -10,6 +11,15 @@ import {
 } from "./dispatch-helpers.js";
 
 afterEach(cleanupTempDirs);
+
+const hasJj = spawnSync("jj", ["--version"], { encoding: "utf8" }).status === 0;
+
+function runJjCommand(args: string[], cwd: string): void {
+  const result = spawnSync("jj", args, { cwd, encoding: "utf8" });
+  if (result.status !== 0) {
+    throw new Error(result.stderr || `jj ${args.join(" ")} failed`);
+  }
+}
 
 async function initBranchRepo(): Promise<string> {
   const repoPath = await makeTempDir("bb-host-branches-repo-");
@@ -187,12 +197,34 @@ describe("host.inspect_git_source dispatch", () => {
     );
 
     expect(result).toMatchObject({
+      vcsKind: "git",
+      currentBookmark: null,
       checkout: { kind: "branch", branchName: "develop" },
       defaultBranch: "main",
       defaultBranchRelation: null,
       hasUncommittedChanges: false,
       operation: { kind: "none" },
       originDefaultBranch: null,
+    });
+  });
+
+  it.runIf(hasJj)("reports the current bookmark for colocated JJ", async () => {
+    const repoPath = await initBranchRepo();
+    runJjCommand(["git", "init", "--colocate", "."], repoPath);
+    runJjCommand(["bookmark", "set", "qa/jj-driver", "-r", "@"], repoPath);
+
+    const result = await dispatchOnlineRpcCommand(
+      {
+        type: "host.inspect_git_source",
+        path: repoPath,
+        remoteRefresh: "blocking",
+      },
+      createHarness().dispatchOptions(),
+    );
+
+    expect(result).toMatchObject({
+      vcsKind: "jj",
+      currentBookmark: "qa/jj-driver",
     });
   });
 
@@ -407,6 +439,8 @@ describe("host.inspect_git_source dispatch", () => {
     );
 
     expect(result).toEqual({
+      vcsKind: null,
+      currentBookmark: null,
       checkout: { kind: "unknown", reason: "Path is not a git repository" },
       defaultBranch: null,
       defaultBranchRelation: null,
@@ -431,6 +465,8 @@ describe("host.inspect_git_source dispatch", () => {
     );
 
     expect(result).toEqual({
+      vcsKind: null,
+      currentBookmark: null,
       checkout: { kind: "unknown", reason: "Path is not a git repository" },
       defaultBranch: null,
       defaultBranchRelation: null,

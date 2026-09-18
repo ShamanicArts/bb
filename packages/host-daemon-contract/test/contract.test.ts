@@ -111,6 +111,7 @@ const WORKSPACE_UNAVAILABLE_RESULT: JsonObject = {
 const WORKSPACE_STATUS_AVAILABLE_RESULT: JsonObject = {
   outcome: "available",
   workspaceStatus: {
+    vcsKind: "git",
     workingTree: {
       insertions: 3,
       deletions: 1,
@@ -334,6 +335,8 @@ const ONLINE_RPC_RESPONSE_RESULT_FIXTURES: OnlineRpcResponseResultFixtures = {
     ],
   },
   "host.inspect_git_source": {
+    vcsKind: "git",
+    currentBookmark: null,
     checkout: {
       kind: "branch",
       branchName: "main",
@@ -1128,7 +1131,7 @@ const CONTRIBUTED_ENV = [
 
 describe("host-daemon command schemas", () => {
   it("uses the current host-daemon protocol version", () => {
-    expect(HOST_DAEMON_PROTOCOL_VERSION).toBe(213);
+    expect(HOST_DAEMON_PROTOCOL_VERSION).toBe(215);
     expect(HOST_ARTIFACT_MAX_BYTES).toBe(256 * 1024 * 1024);
   });
 
@@ -3025,6 +3028,8 @@ describe("host-daemon command schemas", () => {
 
     expect(
       hostDaemonOnlineRpcResultSchemaByType["host.inspect_git_source"].parse({
+        vcsKind: "git",
+        currentBookmark: null,
         checkout: {
           kind: "branch",
           branchName: "feature/test",
@@ -3108,6 +3113,7 @@ describe("host-daemon command schemas", () => {
       hostDaemonOnlineRpcResultSchemaByType["workspace.status"].parse({
         outcome: "available",
         workspaceStatus: {
+          vcsKind: "git",
           workingTree: {
             insertions: 0,
             deletions: 0,
@@ -3131,6 +3137,7 @@ describe("host-daemon command schemas", () => {
     ).toMatchObject({
       outcome: "available",
       workspaceStatus: {
+        vcsKind: "git",
         workingTree: {
           state: "clean",
         },

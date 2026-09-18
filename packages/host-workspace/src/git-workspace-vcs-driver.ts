@@ -33,6 +33,7 @@ const WORKSPACE_BRANCH_GIT_TIMEOUT_MS = 15_000;
 export class GitWorkspaceVcsDriver implements WorkspaceVcsDriver {
   readonly kind = "git";
   readonly isRepository: boolean;
+  readonly isGitRepository: boolean;
   readonly isWorktree: boolean;
 
   private readonly path: string;
@@ -47,6 +48,7 @@ export class GitWorkspaceVcsDriver implements WorkspaceVcsDriver {
   }) {
     this.path = options.path;
     this.isRepository = options.isRepository;
+    this.isGitRepository = options.isRepository;
     this.isWorktree = options.isWorktree;
     this.processOptions = {
       ...(options.shellPath === undefined
