@@ -79,6 +79,7 @@ const promptboxBannerFiles: WorkspaceFileStatus[] = [
 ];
 
 const dirtyUncommittedStatus: WorkspaceStatus = {
+  vcsKind: "git",
   workingTree: {
     state: "dirty_uncommitted",
     hasUncommittedChanges: true,
@@ -217,6 +218,7 @@ const dirtyUncommittedManyFiles: WorkspaceFileStatus[] = [
 ];
 
 const dirtyUncommittedManyStatus: WorkspaceStatus = {
+  vcsKind: "git",
   workingTree: {
     state: "dirty_uncommitted",
     hasUncommittedChanges: true,
@@ -238,6 +240,7 @@ const dirtyUncommittedManyStatus: WorkspaceStatus = {
 };
 
 const untrackedOnlyStatus: WorkspaceStatus = {
+  vcsKind: "git",
   workingTree: {
     state: "untracked",
     hasUncommittedChanges: false,
@@ -272,6 +275,7 @@ const untrackedOnlyStatus: WorkspaceStatus = {
 };
 
 const committedUnmergedStatus: WorkspaceStatus = {
+  vcsKind: "git",
   workingTree: {
     state: "clean",
     hasUncommittedChanges: false,

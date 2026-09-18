@@ -120,6 +120,7 @@ describe("provisionWorkspace", () => {
       const customDriver: WorkspaceVcsDriver = {
         kind: "custom",
         isRepository: true,
+        isGitRepository: false,
         isWorktree: false,
         getDefaultBranch: () => Promise.resolve("custom-trunk"),
         getCurrentBranch: () => Promise.resolve("custom-change"),

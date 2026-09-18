@@ -125,6 +125,12 @@ export function checkoutBlocker(state: CheckoutState): CheckoutBlocker | null {
       guidance: "Branch changes are unavailable because this checkout could not be inspected.",
     };
   }
+  if (state.vcsKind === "jj") {
+    return {
+      label: "Jujutsu",
+      reason: "Branch selection is managed by Jujutsu",
+    };
+  }
   if (state.operation.kind !== "none") {
     if (state.operation.hasConflicts) {
       return {
@@ -165,6 +171,11 @@ export function checkoutBlocker(state: CheckoutState): CheckoutBlocker | null {
 }
 
 function currentMenuLabel(state: CheckoutState): string {
+  if (state.vcsKind === "jj") {
+    return state.currentBookmark === null
+      ? "Jujutsu workspace (no bookmark)"
+      : `Current bookmark: ${state.currentBookmark}`;
+  }
   if (state.currentBranch !== null) return `Current: ${state.currentBranch}`;
   if (state.detached) return "Current (detached)";
   if (state.unborn) return "Current (empty repo)";
@@ -173,6 +184,11 @@ function currentMenuLabel(state: CheckoutState): string {
 }
 
 function currentTriggerLabel(state: CheckoutState): string {
+  if (state.vcsKind === "jj") {
+    return state.currentBookmark === null
+      ? "JJ workspace"
+      : `JJ (${state.currentBookmark})`;
+  }
   return state.currentBranch === null
     ? currentMenuLabel(state)
     : `Current (${state.currentBranch})`;
@@ -509,40 +525,45 @@ function CheckoutInputsControl({
                 wrap
               />
             </BranchPickerRow>
-            <BranchPickerRow
-              disabled={blocker !== null}
-              icon="Plus"
-              selected={checkoutIntent === "new"}
-              title={blocker?.reason ?? CREATE_NEW_BRANCH_LABEL}
-              onSelect={() => {
-                setCheckoutIntent("new");
-                const baseBranch = selectedBranchName ?? checkout.currentBranch;
-                if (baseBranch !== null) {
-                  updateBranch({ kind: "new", baseBranch });
-                }
-              }}
-            >
-              <BranchPickerText
-                label={CREATE_NEW_BRANCH_LABEL}
-                className="flex-1"
-                wrap
-              />
-            </BranchPickerRow>
-            <BranchPickerRow
-              disabled={blocker !== null}
-              icon="GitMerge"
-              selected={checkoutIntent === "checkout"}
-              title={blocker?.reason ?? "Checkout an existing branch"}
-              onSelect={() => setCheckoutIntent("checkout")}
-            >
-              <BranchPickerText label="Checkout" className="flex-1" wrap />
-            </BranchPickerRow>
+            {checkout.vcsKind !== "jj" ? (
+              <>
+                <BranchPickerRow
+                  disabled={blocker !== null}
+                  icon="Plus"
+                  selected={checkoutIntent === "new"}
+                  title={blocker?.reason ?? CREATE_NEW_BRANCH_LABEL}
+                  onSelect={() => {
+                    setCheckoutIntent("new");
+                    const baseBranch =
+                      selectedBranchName ?? checkout.currentBranch;
+                    if (baseBranch !== null) {
+                      updateBranch({ kind: "new", baseBranch });
+                    }
+                  }}
+                >
+                  <BranchPickerText
+                    label={CREATE_NEW_BRANCH_LABEL}
+                    className="flex-1"
+                    wrap
+                  />
+                </BranchPickerRow>
+                <BranchPickerRow
+                  disabled={blocker !== null}
+                  icon="GitMerge"
+                  selected={checkoutIntent === "checkout"}
+                  title={blocker?.reason ?? "Checkout an existing branch"}
+                  onSelect={() => setCheckoutIntent("checkout")}
+                >
+                  <BranchPickerText label="Checkout" className="flex-1" wrap />
+                </BranchPickerRow>
+              </>
+            ) : null}
             {blocker !== null ? (
               <p role="status" className="px-2 py-2 text-xs leading-snug text-muted-foreground">
                 {blocker.guidance}
               </p>
             ) : null}
-            {showBranchChooser ? (
+            {showBranchChooser && checkout.vcsKind !== "jj" ? (
               <>
                 <div className="my-1 h-px bg-border/60" />
                 <BranchPickerSectionHeader

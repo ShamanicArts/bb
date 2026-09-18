@@ -704,6 +704,7 @@ export class Workspace {
     });
 
     return {
+      vcsKind: "git",
       workingTree: {
         hasUncommittedChanges: hasDirtyEntries,
         state,

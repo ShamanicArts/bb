@@ -2758,11 +2758,13 @@ export interface UseCheckoutStateArgs {
 }
 
 export interface CheckoutState {
+  vcsKind: "git" | "jj" | null;
   isGit: boolean | null;
   unborn: boolean;
   detached: boolean;
   dirty: boolean;
   currentBranch: string | null;
+  currentBookmark: string | null;
   operation: WorkspaceGitOperation;
 }
 

@@ -134,6 +134,7 @@ const workspaceMergeBaseSchema = workspaceChangeStatsSchema.extend({
 export type WorkspaceMergeBase = z.infer<typeof workspaceMergeBaseSchema>;
 
 export const workspaceStatusSchema = z.object({
+  vcsKind: z.enum(["git", "jj"]),
   workingTree: workspaceWorkingTreeSchema,
   checkout: gitCheckoutRefSchema,
   branch: workspaceBranchSchema,

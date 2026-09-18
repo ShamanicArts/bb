@@ -1388,6 +1388,8 @@ describe("environment providers are asked inside provisioning", () => {
           defaultBranchRelation: "local-ahead",
           hasUncommittedChanges: false,
           operation: { kind: "none" },
+          vcsKind: "git",
+          currentBookmark: null,
           originDefaultBranch: "origin/main",
         },
         onInspectGitSource: (command) => {
@@ -1634,6 +1636,8 @@ describe("environment providers are asked inside provisioning", () => {
           isWorktree: false,
           hasUncommittedChanges: false,
           operation: { kind: "none" },
+          vcsKind: "git",
+          currentBookmark: null,
           originDefaultBranch: null,
         },
       });
@@ -2289,6 +2293,8 @@ describe("environment provider listing", () => {
             isWorktree: false,
             hasUncommittedChanges: false,
             operation: { kind: "none" },
+            vcsKind: null,
+            currentBookmark: null,
             originDefaultBranch: null,
           },
         });
@@ -2331,6 +2337,8 @@ describe("environment provider listing", () => {
           isWorktree: false,
           hasUncommittedChanges: false,
           operation: { kind: "none" },
+          vcsKind: null,
+          currentBookmark: null,
           originDefaultBranch: null,
         },
       });

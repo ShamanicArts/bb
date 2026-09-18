@@ -402,6 +402,22 @@ interface BranchRowProps {
   workspaceStatus: WorkspaceStatus | undefined;
 }
 
+export function VersionControlRow({ workspaceStatus }: BranchRowProps) {
+  if (!workspaceStatus) return null;
+  const label = workspaceStatus.vcsKind === "jj" ? "Jujutsu" : "Git";
+  return (
+    <DetailRow
+      label={
+        <DetailRowIconLabel icon="GitBranch">
+          Version control
+        </DetailRowIconLabel>
+      }
+    >
+      <span className="font-medium text-foreground">{label}</span>
+    </DetailRow>
+  );
+}
+
 export function BranchRow({ workspaceStatus }: BranchRowProps) {
   const checkoutDisplay = workspaceStatus
     ? formatWorkspaceCheckoutDisplay({ checkout: workspaceStatus.checkout })
@@ -411,7 +427,10 @@ export function BranchRow({ workspaceStatus }: BranchRowProps) {
     <DetailRow
       label={
         <DetailRowIconLabel icon="GitBranch">
-          {checkoutDisplay.rowLabel}
+          {workspaceStatus?.vcsKind === "jj" &&
+          checkoutDisplay.rowLabel === "Branch"
+            ? "Bookmark"
+            : checkoutDisplay.rowLabel}
         </DetailRowIconLabel>
       }
       valueClassName="min-w-0 truncate"
@@ -1067,6 +1086,7 @@ export function ThreadMetadataContent(props: ThreadMetadataContentProps) {
       <WorkspacePathRow environment={environment} />
       {environment !== null && environment.hostLifecycle !== "active" ? null : (
         <>
+          <VersionControlRow workspaceStatus={workspaceStatus} />
           <BranchRow workspaceStatus={workspaceStatus} />
           <MergeBaseRow
             workspaceStatus={workspaceStatus}

@@ -40,6 +40,7 @@ export function makeWorkspaceStatus(
   overrides: Partial<WorkspaceStatus> = {},
 ): WorkspaceStatus {
   return {
+    vcsKind: "git",
     workingTree: makeWorkspaceWorkingTree(),
     checkout: { kind: "branch", branchName: "main", headSha: null },
     branch: { currentBranch: "main", defaultBranch: "main" },

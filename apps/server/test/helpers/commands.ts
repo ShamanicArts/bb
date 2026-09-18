@@ -240,6 +240,8 @@ function respondToProviderModelListCommand(
 
 function buildDefaultGitSourceInspectionResult(): HostDaemonOnlineRpcResult<"host.inspect_git_source"> {
   return {
+    vcsKind: "git",
+    currentBookmark: null,
     isWorktree: false,
     checkout: {
       kind: "branch",

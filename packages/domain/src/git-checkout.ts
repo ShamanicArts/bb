@@ -116,6 +116,8 @@ const defaultBranchRelationSchema = z.enum([
 export type DefaultBranchRelation = z.infer<typeof defaultBranchRelationSchema>;
 
 export const gitSourceInspectionSchema = z.object({
+  vcsKind: z.enum(["git", "jj"]).nullable(),
+  currentBookmark: z.string().min(1).nullable(),
   checkout: gitCheckoutRefSchema,
   defaultBranch: z.string().min(1).nullable(),
   isWorktree: z.boolean(),
