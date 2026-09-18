@@ -324,6 +324,7 @@ describe("commit message generation", () => {
       await reportQueuedCommandSuccess(harness, statusCommand, {
         outcome: "available",
         workspaceStatus: {
+          vcsKind: "git",
           branch: {
             currentBranch: "feature",
             defaultBranch: "main",
@@ -424,6 +425,7 @@ describe("commit message generation", () => {
         await reportQueuedCommandSuccess(harness, statusCommand, {
           outcome: "available",
           workspaceStatus: {
+            vcsKind: "git",
             branch: {
               currentBranch: "feature",
               defaultBranch: "main",

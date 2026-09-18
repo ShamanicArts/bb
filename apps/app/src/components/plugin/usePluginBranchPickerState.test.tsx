@@ -36,6 +36,8 @@ vi.mock("@/hooks/useRealtimeSubscription", () => ({
 }));
 
 const BRANCHES = {
+  vcsKind: "git",
+  currentBookmark: null,
   branches: ["release"],
   branchesTruncated: false,
   checkout: { kind: "branch", branchName: "main", headSha: null },

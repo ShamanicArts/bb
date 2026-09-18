@@ -86,6 +86,7 @@ export function usePluginCheckoutState({
 
   return useMemo(
     () => ({
+      vcsKind: query.data?.vcsKind ?? null,
       isGit:
         query.data === undefined
           ? null
@@ -94,6 +95,7 @@ export function usePluginCheckoutState({
       detached: checkout?.kind === "detached",
       dirty: query.data?.hasUncommittedChanges ?? false,
       currentBranch: checkout?.kind === "branch" ? checkout.branchName : null,
+      currentBookmark: query.data?.currentBookmark ?? null,
       operation: query.data?.operation ?? { kind: "none" },
     }),
     [checkout, query.data],

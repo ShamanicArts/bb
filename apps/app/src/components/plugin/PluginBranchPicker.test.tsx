@@ -25,11 +25,13 @@ beforeEach(() => {
     refresh: refreshBranches,
   });
   vi.mocked(usePluginCheckoutState).mockReturnValue({
+    vcsKind: "git",
     isGit: true,
     unborn: false,
     detached: false,
     dirty: false,
     currentBranch: "main",
+    currentBookmark: null,
     operation: { kind: "none" },
   });
   vi.mocked(usePluginDefaultWorktreeBaseBranch).mockReturnValue("main");
@@ -85,11 +87,13 @@ describe("PluginBranchPicker", () => {
 
   it("uses the resolved default base instead of the checkout branch", () => {
     vi.mocked(usePluginCheckoutState).mockReturnValue({
+      vcsKind: "git",
       isGit: true,
       unborn: false,
       detached: false,
       dirty: false,
       currentBranch: "feature",
+      currentBookmark: null,
       operation: { kind: "none" },
     });
     renderPicker({ value: null, label: "Branch from:" });

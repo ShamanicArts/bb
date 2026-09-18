@@ -22,6 +22,8 @@ vi.mock("@/hooks/useRealtimeSubscription", () => ({
 }));
 
 const INITIAL_BRANCHES = {
+  vcsKind: "git",
+  currentBookmark: null,
   branches: ["main"],
   branchesTruncated: false,
   checkout: { kind: "branch", branchName: "main", headSha: null },

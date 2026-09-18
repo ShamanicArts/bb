@@ -5,6 +5,7 @@ import type {
 } from "@bb/domain";
 import {
   detectGitRepoKind,
+  detectJjRepository,
   detectLinkedWorktree,
   fetchRemoteBranches,
   getCheckoutRef,
@@ -13,6 +14,7 @@ import {
   hasUncommittedChanges,
   listBranchRefsWithDefaults,
   readDefaultBranchRefs,
+  readJjCurrentBookmark,
   type GitProcessOptions,
   withGitRefMutationLock,
 } from "@bb/host-workspace";
@@ -259,6 +261,8 @@ export async function inspectHostGitSource(
   const repoKind = await detectGitRepoKind(command.path, gitProcessOptions);
   if (repoKind === "none") {
     return {
+      vcsKind: null,
+      currentBookmark: null,
       checkout: { kind: "unknown", reason: "Path is not a git repository" },
       defaultBranch: null,
       defaultBranchRelation: null,
@@ -279,7 +283,7 @@ export async function inspectHostGitSource(
     ).catch(() => undefined);
   }
 
-  const [checkout, defaultRefs, dirty, operation, isWorktree] =
+  const [checkout, defaultRefs, dirty, operation, isWorktree, jjRepository] =
     await Promise.all([
       getCheckoutRef(command.path, gitProcessOptions),
       readDefaultBranchRefs(command.path, gitProcessOptions),
@@ -292,10 +296,18 @@ export async function inspectHostGitSource(
       repoKind === "work-tree"
         ? detectLinkedWorktree(command.path, gitProcessOptions)
         : false,
+      repoKind === "work-tree"
+        ? detectJjRepository(command.path, gitProcessOptions)
+        : false,
     ]);
+  const currentBookmark = jjRepository
+    ? await readJjCurrentBookmark(command.path, gitProcessOptions)
+    : null;
   const defaultBranch = defaultRefs.defaultBranch;
   const originDefaultBranch = defaultRefs.originDefaultBranch;
   return {
+    vcsKind: jjRepository ? "jj" : "git",
+    currentBookmark,
     checkout,
     defaultBranch: defaultBranch ?? null,
     defaultBranchRelation: defaultRefs.defaultBranchRelation ?? null,

@@ -27,6 +27,7 @@ function workspaceStatus(
   return {
     outcome: "available",
     workspaceStatus: {
+      vcsKind: "git",
       workingTree: {
         insertions: 0,
         deletions: 0,
@@ -348,7 +349,7 @@ it.each(["suspended", "suspending"] as const)(
         );
         expect(response.status).not.toBe(404);
         expect(listQueuedCommands(h, "workspace.status")).toHaveLength(0);
-      expect(listQueuedCommands(h, "workspace.pull_request")).toHaveLength(0);
+        expect(listQueuedCommands(h, "workspace.pull_request")).toHaveLength(0);
       }
     });
   },
