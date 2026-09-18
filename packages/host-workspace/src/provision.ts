@@ -1,5 +1,9 @@
 import type { ProvisioningTranscriptEntry, WorkspaceStatus } from "@bb/domain";
 import { pathExists } from "@bb/process-utils";
+import {
+  GitWorkspaceVcsDriver,
+  gitWorkspaceVcsDriverProvider,
+} from "./git-workspace-vcs-driver.js";
 import type {
   CommitOptions,
   CommitResult,
@@ -12,19 +16,15 @@ import type {
   PullRequestActionOptions,
   StatusOptions,
 } from "./workspace.js";
-import { Workspace } from "./workspace.js";
 import type {
   GitHostCliOptions,
   GitHostPullRequestLookup,
 } from "./git-host.js";
-import {
-  detectGitRepo,
-  detectLinkedWorktree,
-  readDefaultBranch,
-  WorkspaceError,
-  type GitProcessOptions,
-} from "./git.js";
-import { resolveAdditionalWorkspaceWriteRoots } from "./workspace-write-roots.js";
+import { WorkspaceError } from "./git.js";
+import type {
+  WorkspaceVcsDriver,
+  WorkspaceVcsDriverProvider,
+} from "./workspace-vcs-driver.js";
 
 type ProvisionProgressCallback = (entry: ProvisioningTranscriptEntry) => void;
 
@@ -50,11 +50,10 @@ interface ProvisionBase {
 
 interface UnmanagedWorkspaceOpts extends ProvisionBase {
   path: string;
+  additionalVcsDrivers?: readonly WorkspaceVcsDriverProvider[];
 }
 
 export type ProvisionWorkspaceArgs = UnmanagedWorkspaceOpts;
-
-const WORKSPACE_BRANCH_GIT_TIMEOUT_MS = 15_000;
 
 export interface HostWorkspace {
   readonly path: string;
@@ -87,93 +86,70 @@ class ProvisionedHostWorkspace implements HostWorkspace {
   readonly isGitRepo: boolean;
   readonly isWorktree: boolean;
 
-  private readonly ws: Workspace;
-  private readonly gitProcessOptions: GitProcessOptions;
+  private readonly vcs: WorkspaceVcsDriver;
 
-  constructor(opts: {
-    path: string;
-    isGitRepo: boolean;
-    isWorktree: boolean;
-    shellPath?: string;
-  }) {
+  constructor(opts: { path: string; vcs: WorkspaceVcsDriver }) {
     this.path = opts.path;
-    this.isGitRepo = opts.isGitRepo;
-    this.isWorktree = opts.isWorktree;
-    this.gitProcessOptions = {
-      ...(opts.shellPath !== undefined ? { shellPath: opts.shellPath } : {}),
-    };
-    this.ws = new Workspace(opts.path, this.gitProcessOptions);
+    this.vcs = opts.vcs;
+    this.isGitRepo = opts.vcs.isRepository && opts.vcs.kind === "git";
+    this.isWorktree = opts.vcs.isWorktree;
   }
 
-  async getCurrentBranch(): Promise<string | null> {
-    return (await this.ws.currentBranch) ?? null;
+  getCurrentBranch(): Promise<string | null> {
+    return this.vcs.getCurrentBranch();
   }
 
-  async getDefaultBranch(): Promise<string | null> {
-    if (!this.isGitRepo) {
-      return null;
-    }
-    return (
-      (await readDefaultBranch(this.path, {
-        timeoutMs: WORKSPACE_BRANCH_GIT_TIMEOUT_MS,
-        ...this.gitProcessOptions,
-      })) ?? null
-    );
+  getDefaultBranch(): Promise<string | null> {
+    return this.vcs.getDefaultBranch();
   }
 
   getHeadSha(): Promise<string | null> {
-    return this.ws.getHeadSha();
+    return this.vcs.getHeadSha();
   }
 
   getLocalStateFingerprint(): Promise<string> {
-    return this.ws.getLocalStateFingerprint();
+    return this.vcs.getLocalStateFingerprint();
   }
 
   getSharedGitRefsFingerprint(): Promise<string> {
-    return this.ws.getSharedGitRefsFingerprint();
+    return this.vcs.getSharedRefsFingerprint();
   }
 
   getAdditionalWorkspaceWriteRoots(): Promise<string[]> {
-    if (!this.isGitRepo || !this.isWorktree) {
-      return Promise.resolve([]);
-    }
-    return resolveAdditionalWorkspaceWriteRoots(
-      this.path,
-      this.gitProcessOptions,
-    );
+    return this.vcs.getAdditionalWorkspaceWriteRoots();
   }
 
   getStatus(options?: StatusOptions): Promise<WorkspaceStatus> {
-    return this.ws.getStatus(options);
+    return this.vcs.getStatus(options);
   }
 
   getDiff(options?: DiffOptions): Promise<DiffResult> {
-    return this.ws.getDiff(options);
+    return this.vcs.getDiff(options);
   }
 
   diffFiles(args: DiffFilesArgs): Promise<DiffFilesResult> {
-    return this.ws.diffFiles(args);
+    return this.vcs.diffFiles(args);
   }
 
   diffPatch(args: DiffPatchArgs): Promise<DiffPatchEntry[]> {
-    return this.ws.diffPatch(args);
+    return this.vcs.diffPatch(args);
   }
 
   getPullRequest(
     options?: GitHostCliOptions,
   ): Promise<GitHostPullRequestLookup> {
-    return this.ws.getPullRequest(options);
+    return this.vcs.getPullRequest(options);
   }
 
   runPullRequestAction(
     action: PullRequestActionOptions,
     options?: GitHostCliOptions,
   ): Promise<void> {
-    return this.ws.runPullRequestAction(action, options);
+    return this.vcs.runPullRequestAction(action, options);
   }
 
   commit(options: CommitOptions): Promise<CommitResult> {
-    return this.ws.commit(options);
+    return this.vcs.commit(options);
   }
 }
 
@@ -193,19 +169,30 @@ async function provisionUnmanaged(
       `Unmanaged workspace path does not exist: ${opts.path}`,
     );
   }
-  const isGitRepo = await detectGitRepo(opts.path, {
-    ...(opts.shellPath !== undefined ? { shellPath: opts.shellPath } : {}),
+  const openOptions = {
+    path: opts.path,
+    ...(opts.shellPath === undefined ? {} : { shellPath: opts.shellPath }),
+    ...(opts.signal === undefined ? {} : { signal: opts.signal }),
+  };
+  let vcs: WorkspaceVcsDriver | null = null;
+  for (const provider of [
+    ...(opts.additionalVcsDrivers ?? []),
+    gitWorkspaceVcsDriverProvider,
+  ]) {
+    vcs = await provider.open(openOptions);
+    if (vcs !== null) {
+      break;
+    }
+  }
+  vcs ??= new GitWorkspaceVcsDriver({
+    path: opts.path,
+    isRepository: false,
+    isWorktree: false,
+    ...(opts.shellPath === undefined ? {} : { shellPath: opts.shellPath }),
   });
-  const gitProcessOptions =
-    opts.shellPath === undefined ? {} : { shellPath: opts.shellPath };
-  const isWorktree = isGitRepo
-    ? await detectLinkedWorktree(opts.path, gitProcessOptions)
-    : false;
 
   return new ProvisionedHostWorkspace({
     path: opts.path,
-    isGitRepo,
-    isWorktree,
-    shellPath: opts.shellPath,
+    vcs,
   });
 }
