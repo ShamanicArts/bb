@@ -4,6 +4,7 @@ import {
   GitWorkspaceVcsDriver,
   gitWorkspaceVcsDriverProvider,
 } from "./git-workspace-vcs-driver.js";
+import { jjWorkspaceVcsDriverProvider } from "./jj-workspace-vcs-driver.js";
 import type {
   CommitOptions,
   CommitResult,
@@ -91,7 +92,7 @@ class ProvisionedHostWorkspace implements HostWorkspace {
   constructor(opts: { path: string; vcs: WorkspaceVcsDriver }) {
     this.path = opts.path;
     this.vcs = opts.vcs;
-    this.isGitRepo = opts.vcs.isRepository && opts.vcs.kind === "git";
+    this.isGitRepo = opts.vcs.isGitRepository;
     this.isWorktree = opts.vcs.isWorktree;
   }
 
@@ -177,6 +178,7 @@ async function provisionUnmanaged(
   let vcs: WorkspaceVcsDriver | null = null;
   for (const provider of [
     ...(opts.additionalVcsDrivers ?? []),
+    jjWorkspaceVcsDriverProvider,
     gitWorkspaceVcsDriverProvider,
   ]) {
     vcs = await provider.open(openOptions);

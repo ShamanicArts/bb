@@ -9,7 +9,7 @@ import {
 } from "@testing-library/react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { MemoryRouter } from "react-router-dom";
-import type { Environment, Host, Thread } from "@bb/domain";
+import type { Environment, Host, Thread, WorkspaceStatus } from "@bb/domain";
 import type { EnvironmentDisplayHostContext } from "@bb/core-ui";
 import type {
   SystemEnvironmentProvider,
@@ -31,10 +31,12 @@ import {
   makeThread as makeThreadFixture,
 } from "@bb/test-helpers/domain-fixtures";
 import {
+  BranchRow,
   EnvironmentProvisioningFailureRow,
   EnvironmentRow,
   GitStatusRow,
   ThreadMetadataCard,
+  VersionControlRow,
 } from "./ThreadMetadataContent";
 
 const localHost = { locality: "local", identity: null } as const;
@@ -42,6 +44,36 @@ const connectedLocalHost: EnvironmentDisplayHostContext = {
   locality: "local",
   identity: { name: "Michael-M4", connected: true },
 };
+
+describe("workspace VCS rows", () => {
+  it("identifies JJ and labels its current ref as a bookmark", () => {
+    const workspaceStatus: WorkspaceStatus = {
+      vcsKind: "jj",
+      workingTree: {
+        hasUncommittedChanges: false,
+        state: "clean",
+        insertions: 0,
+        deletions: 0,
+        lineStatsComplete: true,
+        files: [],
+      },
+      checkout: { kind: "branch", branchName: "feature", headSha: null },
+      branch: { currentBranch: "feature", defaultBranch: "main" },
+      mergeBase: null,
+    };
+    const markup = renderToStaticMarkup(
+      <>
+        <VersionControlRow workspaceStatus={workspaceStatus} />
+        <BranchRow workspaceStatus={workspaceStatus} />
+      </>,
+    );
+
+    expect(markup).toContain("Version control");
+    expect(markup).toContain("Jujutsu");
+    expect(markup).toContain("Bookmark");
+    expect(markup).not.toContain(">Branch<");
+  });
+});
 
 function withQueryClient(
   children: ReactNode,

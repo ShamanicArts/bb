@@ -120,6 +120,8 @@ function makeStatusResponse(
 
 function makeProjectBranchesResponse(): ProjectBranchesResponse {
   return {
+    vcsKind: "git",
+    currentBookmark: null,
     branches: ["main"],
     branchesTruncated: false,
     checkout: {

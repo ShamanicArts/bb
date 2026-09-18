@@ -81,6 +81,8 @@ describe("public project workspace routing", () => {
               isWorktree: false,
               hasUncommittedChanges: false,
               operation: { kind: "none" },
+              vcsKind: "git",
+              currentBookmark: null,
               originDefaultBranch: "origin/main",
             },
           };

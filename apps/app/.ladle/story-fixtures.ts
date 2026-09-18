@@ -607,6 +607,7 @@ export function makeWorkspaceStatus(
   overrides: Partial<WorkspaceStatus> = {},
 ): WorkspaceStatus {
   const base: WorkspaceStatus = {
+    vcsKind: "git",
     workingTree: {
       hasUncommittedChanges: false,
       state: "clean",

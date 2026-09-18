@@ -19,6 +19,7 @@ import type {
 export interface WorkspaceVcsDriver {
   readonly kind: string;
   readonly isRepository: boolean;
+  readonly isGitRepository: boolean;
   readonly isWorktree: boolean;
 
   getDefaultBranch(): Promise<string | null>;

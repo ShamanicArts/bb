@@ -387,6 +387,7 @@ const stackedCardsWithPillsMentions = buildStoryMentions(
 );
 
 const dirtyWorkspaceStatus: WorkspaceStatus = {
+  vcsKind: "git",
   workingTree: {
     state: "dirty_uncommitted",
     hasUncommittedChanges: true,

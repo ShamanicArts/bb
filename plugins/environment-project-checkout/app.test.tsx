@@ -78,6 +78,36 @@ describe("checkout inputs control", () => {
     ).toContain("Current (main)");
   });
 
+  it("identifies a colocated JJ checkout and hides Git branch actions", async () => {
+    const slot = renderSlot(
+      inputsSlot(),
+      {
+        projectId: "project-1",
+        target: { kind: "existing-host", hostId: "host-a" },
+        value: null,
+        onChange: vi.fn(),
+      },
+      {
+        checkoutState: {
+          vcsKind: "jj",
+          currentBranch: "main",
+          currentBookmark: "qa/jj-driver",
+        },
+      },
+    );
+    const trigger = slot.getByRole("combobox", { name: "Branch" });
+    expect(trigger.textContent).toContain("JJ (qa/jj-driver)");
+
+    fireEvent.click(trigger);
+    expect(
+      await slot.findByRole("button", {
+        name: "Current bookmark: qa/jj-driver",
+      }),
+    ).toBeDefined();
+    expect(slot.queryByRole("button", { name: "New branch" })).toBeNull();
+    expect(slot.queryByRole("button", { name: "Checkout" })).toBeNull();
+  });
+
   it("renders an existing branch pick on the chip", () => {
     const slot = renderSlot(inputsSlot(), {
       projectId: "project-1",

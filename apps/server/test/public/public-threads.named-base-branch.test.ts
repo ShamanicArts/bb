@@ -29,6 +29,8 @@ function buildCheckout(
     defaultBranchRelation,
     hasUncommittedChanges: false,
     operation: { kind: "none" },
+    vcsKind: "git",
+    currentBookmark: null,
     originDefaultBranch: "origin/main",
   };
 }
@@ -41,6 +43,8 @@ function buildDetachedSingleBranchCheckout(): GitSourceInspection {
     defaultBranchRelation: null,
     hasUncommittedChanges: false,
     operation: { kind: "none" },
+    vcsKind: "git",
+    currentBookmark: null,
     originDefaultBranch: null,
   };
 }

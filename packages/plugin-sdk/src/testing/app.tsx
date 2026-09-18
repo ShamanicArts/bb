@@ -1716,11 +1716,13 @@ export function renderSlot<
       refresh: options.branchesState?.refresh ?? (() => Promise.resolve()),
     },
     checkoutState: {
+      vcsKind: "git",
       isGit: true,
       unborn: false,
       detached: false,
       dirty: false,
       currentBranch: "main",
+      currentBookmark: null,
       operation: { kind: "none" },
       ...options.checkoutState,
     },
