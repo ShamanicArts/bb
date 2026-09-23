@@ -1,3 +1,4 @@
+import path from "node:path";
 import {
   type ProviderHealthResult,
   type ProviderInstallationRunResult,
@@ -82,20 +83,92 @@ function codexUpdateCommand(): {
   };
 }
 
-export async function getCodexProviderInstallationStatus(
+function miseCodexUpdateCommand(): {
+  command: string;
+  args: string[];
+  displayCommand: string;
+} {
+  const args = ["upgrade", "codex"];
+  return {
+    command: "mise",
+    args,
+    displayCommand: formatCommand("mise", args),
+  };
+}
+
+function firstOutputLine(value: string | null): string | null {
+  return (
+    value
+      ?.split(/\r?\n/u)
+      .map((line) => line.trim())
+      .find(Boolean) ?? null
+  );
+}
+
+function isMiseCodexShim(executablePath: string): boolean {
+  return /\/mise\/shims\/codex(?:\.(?:cmd|exe))?$/iu.test(
+    executablePath.replace(/\\/gu, "/"),
+  );
+}
+
+function codexUpdateStrategy(args: {
+  resolvedExecutable: string | null;
+  npmLatestVersion: string | null;
+  miseExecutableOutput: string | null;
+  miseLatestVersionOutput: string | null;
+}): {
+  command: ReturnType<typeof codexUpdateCommand>;
+  latestVersion: string | null;
+} {
+  const miseExecutable = firstOutputLine(args.miseExecutableOutput);
+  const miseManaged =
+    args.resolvedExecutable !== null &&
+    miseExecutable !== null &&
+    (path.resolve(args.resolvedExecutable) === path.resolve(miseExecutable) ||
+      isMiseCodexShim(args.resolvedExecutable));
+  return miseManaged
+    ? {
+        command: miseCodexUpdateCommand(),
+        latestVersion: versionFrom(args.miseLatestVersionOutput),
+      }
+    : {
+        command: codexUpdateCommand(),
+        latestVersion: args.npmLatestVersion,
+      };
+}
+
+async function inspectCodexProviderInstallation(
   requirement?: "thread_rewind",
-): Promise<ProviderInstallationStatus> {
+): Promise<{
+  status: ProviderInstallationStatus;
+  updateCommand: ReturnType<typeof codexUpdateCommand>;
+}> {
   const minimumSupportedVersion =
     minimumSupportedVersionForRequirement(requirement);
-  const [resolvedExecutable, versionOutput, latestVersion, npmGlobal] =
-    await Promise.all([
-      resolveExecutablePath("codex"),
-      commandOutput("codex", ["--version"]),
-      npmLatestVersion(CODEX_NPM_PACKAGE),
-      probeNpmGlobalPackage(CODEX_NPM_PACKAGE),
-    ]);
+  const [
+    resolvedExecutable,
+    versionOutput,
+    npmLatest,
+    npmGlobal,
+    miseExecutableOutput,
+    miseLatestVersionOutput,
+  ] = await Promise.all([
+    resolveExecutablePath("codex"),
+    commandOutput("codex", ["--version"]),
+    npmLatestVersion(CODEX_NPM_PACKAGE),
+    probeNpmGlobalPackage(CODEX_NPM_PACKAGE),
+    commandOutput("mise", ["which", "codex"]),
+    commandOutput("mise", ["latest", "codex"]),
+  ]);
   const installed = resolvedExecutable !== null || versionOutput !== null;
   const currentVersion = versionFrom(versionOutput);
+  const updateStrategy = codexUpdateStrategy({
+    resolvedExecutable,
+    npmLatestVersion: npmLatest,
+    miseExecutableOutput,
+    miseLatestVersionOutput,
+  });
+  const latestVersion = updateStrategy.latestVersion;
   const needsUpdate =
     installed &&
     currentVersion !== null &&
@@ -113,45 +186,59 @@ export async function getCodexProviderInstallationStatus(
       : null;
 
   return {
-    executableName: "codex",
-    executablePath: resolvedExecutable,
-    installed,
-    installSource: npmGlobalInstallSource({
-      installed,
+    status: {
+      executableName: "codex",
       executablePath: resolvedExecutable,
-      npmBin: npmGlobal.npmBin,
-    }),
-    currentVersion,
-    latestVersion,
-    minimumSupportedVersion,
-    npmPackageName: CODEX_NPM_PACKAGE,
-    npmGlobalPackageVersion: npmGlobal.npmGlobalPackageVersion,
-    installAction:
-      actionKind === null
-        ? null
-        : {
-            kind: actionKind,
-            label: actionKind === "install" ? "Install" : "Update",
-            command:
-              actionKind === "install"
-                ? npmGlobalInstallCommand(CODEX_NPM_PACKAGE).displayCommand
-                : codexUpdateCommand().displayCommand,
-          },
-    needsUpdate,
-    versionUnsupported,
+      installed,
+      installSource: npmGlobalInstallSource({
+        installed,
+        executablePath: resolvedExecutable,
+        npmBin: npmGlobal.npmBin,
+      }),
+      currentVersion,
+      latestVersion,
+      minimumSupportedVersion,
+      npmPackageName: CODEX_NPM_PACKAGE,
+      npmGlobalPackageVersion: npmGlobal.npmGlobalPackageVersion,
+      installAction:
+        actionKind === null
+          ? null
+          : {
+              kind: actionKind,
+              label: actionKind === "install" ? "Install" : "Update",
+              command:
+                actionKind === "install"
+                  ? npmGlobalInstallCommand(CODEX_NPM_PACKAGE).displayCommand
+                  : updateStrategy.command.displayCommand,
+            },
+      needsUpdate,
+      versionUnsupported,
+    },
+    updateCommand: updateStrategy.command,
   };
+}
+
+export async function getCodexProviderInstallationStatus(
+  requirement?: "thread_rewind",
+): Promise<ProviderInstallationStatus> {
+  return (await inspectCodexProviderInstallation(requirement)).status;
 }
 
 export async function getCodexProviderInstallationRun(
   action: "install" | "update",
 ): Promise<ProviderInstallationRunResult> {
-  const status = await getCodexProviderInstallationStatus();
-  return buildCodexProviderInstallationRun(status, action);
+  const installation = await inspectCodexProviderInstallation();
+  return buildCodexProviderInstallationRun(
+    installation.status,
+    action,
+    installation.updateCommand,
+  );
 }
 
 function buildCodexProviderInstallationRun(
   status: ProviderInstallationStatus,
   action: "install" | "update",
+  updateCommand = codexUpdateCommand(),
 ): ProviderInstallationRunResult {
   if (status.installAction?.kind !== action) {
     return {
@@ -164,7 +251,7 @@ function buildCodexProviderInstallationRun(
     command:
       action === "install"
         ? npmGlobalInstallCommand(CODEX_NPM_PACKAGE)
-        : codexUpdateCommand(),
+        : updateCommand,
     verification: installationVerification(status, action),
   };
 }
@@ -401,4 +488,5 @@ export const __testing = {
   buildProviderInstallationRun: buildCodexProviderInstallationRun,
   minimumSupportedVersionForRequirement,
   normalizeUsage,
+  updateStrategy: codexUpdateStrategy,
 };

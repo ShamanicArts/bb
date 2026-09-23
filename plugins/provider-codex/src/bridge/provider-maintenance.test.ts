@@ -99,6 +99,71 @@ describe("Codex provider maintenance", () => {
       message: "Codex install is no longer available on this host.",
     });
   });
+
+  it("uses mise for an active mise-managed Codex installation", () => {
+    const updateStrategy = __testing.updateStrategy({
+      resolvedExecutable:
+        "/home/me/.local/share/mise/installs/codex/latest/bin/codex",
+      npmLatestVersion: "1.2.0",
+      miseExecutableOutput:
+        "/home/me/.local/share/mise/installs/codex/latest/bin/codex",
+      miseLatestVersionOutput: "1.1.0",
+    });
+    const status = {
+      ...installationStatus(),
+      latestVersion: updateStrategy.latestVersion,
+      installAction: {
+        ...installationStatus().installAction,
+        command: updateStrategy.command.displayCommand,
+      },
+    };
+
+    expect(updateStrategy).toEqual({
+      latestVersion: "1.1.0",
+      command: {
+        command: "mise",
+        args: ["upgrade", "codex"],
+        displayCommand: "mise upgrade codex",
+      },
+    });
+    expect(
+      __testing.buildProviderInstallationRun(
+        status,
+        "update",
+        updateStrategy.command,
+      ),
+    ).toEqual({
+      available: true,
+      command: {
+        command: "mise",
+        args: ["upgrade", "codex"],
+        displayCommand: "mise upgrade codex",
+      },
+      verification: { kind: "version_at_least", version: "1.1.0" },
+    });
+  });
+
+  it("recognizes a mise shim and ignores an inactive mise installation", () => {
+    const miseShimStrategy = __testing.updateStrategy({
+      resolvedExecutable: "/home/me/.local/share/mise/shims/codex",
+      npmLatestVersion: "1.2.0",
+      miseExecutableOutput:
+        "/home/me/.local/share/mise/installs/codex/1.1.0/bin/codex",
+      miseLatestVersionOutput: "1.1.0",
+    });
+    const externalStrategy = __testing.updateStrategy({
+      resolvedExecutable: "/usr/local/bin/codex",
+      npmLatestVersion: "1.2.0",
+      miseExecutableOutput:
+        "/home/me/.local/share/mise/installs/codex/1.1.0/bin/codex",
+      miseLatestVersionOutput: "1.1.0",
+    });
+
+    expect(miseShimStrategy.command.displayCommand).toBe("mise upgrade codex");
+    expect(miseShimStrategy.latestVersion).toBe("1.1.0");
+    expect(externalStrategy.command.displayCommand).toBe("codex update");
+    expect(externalStrategy.latestVersion).toBe("1.2.0");
+  });
 });
 
 describe("Codex credential health and usage", () => {
