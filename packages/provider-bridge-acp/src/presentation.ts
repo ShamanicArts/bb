@@ -23,6 +23,17 @@ export function commandPresentation(command: string): DeltaPresentation {
   );
 }
 
+export function imageReadPresentation(path: string): DeltaPresentation {
+  return withTitle(
+    {
+      label: { pending: "Reading image", completed: "Read image" },
+      icon: { glyph: "Eye" },
+      detail: "Cursor did not report a read result.",
+    },
+    presentationTitle(presentationFileName(path)),
+  );
+}
+
 export type AcpFileChangeVerb = "add" | "update" | "delete";
 
 export function fileChangePresentation(args: {

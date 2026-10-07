@@ -5,7 +5,15 @@ import {
   CURSOR_ACP_MAINTENANCE,
   type AcpMaintenanceDialect,
 } from "./bridge/provider-maintenance.js";
-import { delegationPresentation } from "./presentation.js";
+import {
+  delegationPresentation,
+  imageReadPresentation,
+} from "./presentation.js";
+import {
+  extractAcpToolCallPaths,
+  resolveAcpToolCallPath,
+  type AcpToolCallPathOptions,
+} from "./tool-call-operation.js";
 import {
   commandRawOutputSchema,
   type AcpClassifiedToolCall,
@@ -39,6 +47,7 @@ export interface AcpDialect {
   toolIdentity?(event: AcpToolCallUpdateEvent): AcpToolIdentity | undefined;
   classifyToolCall?(
     event: AcpToolCallUpdateEvent,
+    options?: AcpToolCallPathOptions,
   ): AcpClassifiedToolCall | undefined;
   commandResult?(event: AcpToolCallUpdateEvent): AcpCommandResult | undefined;
   normalizeCommandEvent?(event: AcpToolCallUpdateEvent): AcpToolCallUpdateEvent;
@@ -210,6 +219,47 @@ const cursorTaskRawInputSchema = z
   .object({ _toolName: z.string().optional() })
   .passthrough();
 
+const cursorReadRawInputSchema = z.object({
+  path: z.string().optional(),
+  filePath: z.string().optional(),
+  file_path: z.string().optional(),
+  target_file: z.string().optional(),
+});
+
+function cursorImageRead(
+  event: AcpToolCallUpdateEvent,
+  options: AcpToolCallPathOptions | undefined,
+): AcpClassifiedToolCall | undefined {
+  if (
+    event.kind !== "read" ||
+    event.status !== "completed" ||
+    event.rawOutput !== undefined ||
+    (event.content?.length ?? 0) > 0
+  ) {
+    return undefined;
+  }
+  const paths = new Set(extractAcpToolCallPaths(event, options));
+  const input = cursorReadRawInputSchema.safeParse(event.rawInput);
+  if (event.rawInput !== undefined && !input.success) {
+    return undefined;
+  }
+  if (input.success) {
+    for (const value of Object.values(input.data)) {
+      if (value !== undefined && value.trim().length > 0) {
+        paths.add(resolveAcpToolCallPath(value, options));
+      }
+    }
+  }
+  const [path] = paths;
+  if (paths.size !== 1 || path === undefined || !/\.(png|jpe?g)$/i.test(path)) {
+    return undefined;
+  }
+  return {
+    item: { type: "imageView", path },
+    presentation: imageReadPresentation(path),
+  };
+}
+
 const CURSOR_TASK_METHOD = "cursor/task";
 const cursorTaskParamsSchema = z
   .object({
@@ -223,7 +273,12 @@ const cursorTaskParamsSchema = z
 
 function cursorClassifyToolCall(
   event: AcpToolCallUpdateEvent,
+  options?: AcpToolCallPathOptions,
 ): AcpClassifiedToolCall | undefined {
+  const imageRead = cursorImageRead(event, options);
+  if (imageRead !== undefined) {
+    return imageRead;
+  }
   const parsed = cursorTaskRawInputSchema.safeParse(event.rawInput);
   if (!parsed.success || parsed.data._toolName !== CURSOR_TASK_TOOL) {
     return undefined;

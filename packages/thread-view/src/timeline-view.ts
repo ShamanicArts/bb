@@ -114,6 +114,7 @@ interface TimelineWorkSummaryCounts {
   webSearches: number;
   imageGenerations: number;
   imageViews: number;
+  imageReads: number;
   explorationKindOrder: readonly TimelineExplorationKind[];
 }
 
@@ -222,6 +223,7 @@ function summarizeTimelineWork(
     webSearches: 0,
     imageGenerations: 0,
     imageViews: 0,
+    imageReads: 0,
     explorationKindOrder,
   };
   const exploredFileIdentities = new Set<string>();
@@ -288,7 +290,11 @@ function summarizeTimelineWork(
         counts.imageGenerations += 1;
         break;
       case "image-view":
-        counts.imageViews += 1;
+        if (row.presentation?.label.completed === "Read image") {
+          counts.imageReads += 1;
+        } else {
+          counts.imageViews += 1;
+        }
         break;
       case "delegation":
         counts.delegations += 1;
@@ -606,9 +612,18 @@ function imageViewSummaryPhrase(
   counts: TimelineWorkSummaryCounts,
   active: boolean,
 ): string | null {
-  if (counts.imageViews === 0) return null;
-  const verb = active ? "Viewing" : "Viewed";
-  return `${verb} ${plural(counts.imageViews, "image")}`;
+  const parts: string[] = [];
+  if (counts.imageViews > 0) {
+    parts.push(
+      `${active ? "Viewing" : "Viewed"} ${plural(counts.imageViews, "image")}`,
+    );
+  }
+  if (counts.imageReads > 0) {
+    parts.push(
+      `${active ? "Reading" : "Read"} ${plural(counts.imageReads, "image")}`,
+    );
+  }
+  return parts.length === 0 ? null : parts.join(", ");
 }
 
 function imageGenerationSummaryPhrase(

@@ -297,6 +297,44 @@ export function onWebActivityEnd(
   turnId: string | undefined,
   payload: WebActivityLifecycleEvent,
 ): void {
+  if (payload.itemKind === "image-view") {
+    const active = state.toolActivity.activeCell;
+    const previous =
+      active?.kind === "file-read" && active.callId === payload.callId
+        ? active
+        : findWebActivityInHistoryCells(state, {
+            callId: payload.callId,
+            itemKind: "file-read",
+          });
+    if (
+      previous?.kind === "file-read" &&
+      previous.status === "pending" &&
+      previous.path === payload.path &&
+      areThreadEventScopesEqual(
+        previous.scope,
+        turnId
+          ? eventProjectionMessageTurnScopeFields(turnId).scope
+          : eventProjectionMessageThreadScopeFields().scope,
+      )
+    ) {
+      const image = createWebActivityMessage(
+        threadId,
+        meta,
+        turnId,
+        payload,
+        settledStatus(payload),
+      );
+      Object.assign(previous, image, {
+        id: previous.id,
+        startedAt: previous.startedAt,
+        sourceSeqStart: previous.sourceSeqStart,
+      });
+      Reflect.deleteProperty(previous, "cmd");
+      state.toolActivity.finalizedWebActivityCallIds.add(
+        buildWebActivityKey("file-read", payload.callId),
+      );
+    }
+  }
   const resolved = resolveActiveWebActivity(state, meta, payload);
   if (!resolved) {
     return;

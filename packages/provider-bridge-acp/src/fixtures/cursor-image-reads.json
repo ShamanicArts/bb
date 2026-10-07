@@ -1,0 +1,80 @@
+[
+  {
+    "sessionUpdate": "tool_call",
+    "toolCallId": "toolu_bdrk_01PZasUT5jT2ZAty9dJjRgje",
+    "title": "Read sample.png",
+    "kind": "read",
+    "status": "pending",
+    "rawInput": {
+      "path": "/workspace/sample.png"
+    },
+    "locations": [
+      {
+        "path": "/workspace/sample.png"
+      }
+    ]
+  },
+  {
+    "sessionUpdate": "tool_call_update",
+    "toolCallId": "toolu_bdrk_01PZasUT5jT2ZAty9dJjRgje",
+    "status": "in_progress"
+  },
+  {
+    "sessionUpdate": "tool_call",
+    "toolCallId": "toolu_bdrk_01J1DCzhZsCqsP9gZdCic7oj",
+    "title": "Read ordinary.txt",
+    "kind": "read",
+    "status": "pending",
+    "rawInput": {
+      "path": "/workspace/ordinary.txt"
+    },
+    "locations": [
+      {
+        "path": "/workspace/ordinary.txt"
+      }
+    ]
+  },
+  {
+    "sessionUpdate": "tool_call_update",
+    "toolCallId": "toolu_bdrk_01J1DCzhZsCqsP9gZdCic7oj",
+    "status": "in_progress"
+  },
+  {
+    "sessionUpdate": "tool_call_update",
+    "toolCallId": "toolu_bdrk_01J1DCzhZsCqsP9gZdCic7oj",
+    "status": "completed",
+    "rawOutput": {
+      "content": "Ordinary text read fixture.\n"
+    }
+  },
+  {
+    "sessionUpdate": "tool_call_update",
+    "toolCallId": "toolu_bdrk_01PZasUT5jT2ZAty9dJjRgje",
+    "status": "completed"
+  },
+  {
+    "sessionUpdate": "tool_call",
+    "toolCallId": "toolu_bdrk_01L54wscMU864KNxN5uDq65d",
+    "title": "Read absent.png",
+    "kind": "read",
+    "status": "pending",
+    "rawInput": {
+      "path": "/workspace/absent.png"
+    },
+    "locations": [
+      {
+        "path": "/workspace/absent.png"
+      }
+    ]
+  },
+  {
+    "sessionUpdate": "tool_call_update",
+    "toolCallId": "toolu_bdrk_01L54wscMU864KNxN5uDq65d",
+    "status": "in_progress"
+  },
+  {
+    "sessionUpdate": "tool_call_update",
+    "toolCallId": "toolu_bdrk_01L54wscMU864KNxN5uDq65d",
+    "status": "completed"
+  }
+]

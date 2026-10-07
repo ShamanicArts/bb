@@ -84,7 +84,11 @@ function ImageWorkRowBody({ resolveImageViewSrc, row }: ImageWorkRowBodyProps) {
   const [lightboxOpen, setLightboxOpen] = useState(false);
   const imageSrc = resolveImageViewSource({ resolveImageViewSrc, row });
   const imageName = row.path ? fileNameFromPath(row.path) : "";
-  const imageAlt = `${row.workKind === "image-generation" ? "Generated" : "Viewed"} image: ${imageName}`;
+  const imageLabel =
+    row.workKind === "image-generation"
+      ? "Generated image"
+      : (row.presentation?.label.completed ?? "Viewed image");
+  const imageAlt = `${imageLabel}: ${imageName}`;
 
   useEffect(() => {
     setLoadError(false);
@@ -273,7 +277,13 @@ export function WorkRowBody({
     case "image-generation":
     case "image-view":
       return (
-        <ImageWorkRowBody row={row} resolveImageViewSrc={resolveImageViewSrc} />
+        <>
+          <PresentationDetail presentation={row.presentation} />
+          <ImageWorkRowBody
+            row={row}
+            resolveImageViewSrc={resolveImageViewSrc}
+          />
+        </>
       );
     case "approval":
     case "web-search":

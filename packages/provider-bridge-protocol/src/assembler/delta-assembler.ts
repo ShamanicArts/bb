@@ -1427,7 +1427,13 @@ export function createDeltaAssembler(
         if (
           open !== undefined &&
           turnId !== undefined &&
-          !shapeMatchesItem(delta.item, open.item)
+          !shapeMatchesItem(delta.item, open.item) &&
+          !(
+            open.item.type === "fileRead" &&
+            delta.item.type === "imageView" &&
+            open.item.path === delta.item.path &&
+            delta.status === "completed"
+          )
         ) {
           events.push({
             type: "item/completed",

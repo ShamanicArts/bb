@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { ClientTurnRequestId, ThreadEvent } from "@bb/domain";
 import { threadScope, turnScope } from "@bb/domain";
+import { ThreadEventGrammar } from "../thread-event-grammar.js";
 import type { DeltaItemShape, ThreadDelta } from "../thread-delta.js";
 import {
   createDeltaAssembler,
@@ -37,6 +38,38 @@ function bashOpen(providerItemId: string): ThreadDelta {
 }
 
 describe("delta assembler", () => {
+  it("completes a file read as its same-path image without a duplicate terminal event", () => {
+    const assembler = createAssembler();
+    const started = assemble(
+      assembler,
+      { kind: "turn.open" },
+      {
+        kind: "item.open",
+        key: { providerItemId: "image-read" },
+        item: { type: "fileRead", path: "/repo/image.png" },
+      },
+    );
+    const closed = assemble(assembler, {
+      kind: "item.close",
+      key: { providerItemId: "image-read" },
+      status: "completed",
+      item: { type: "imageView", path: "/repo/image.png" },
+    });
+    expect(closed).toHaveLength(1);
+    expect(closed[0]).toMatchObject({
+      type: "item/completed",
+      item: { type: "imageView", path: "/repo/image.png" },
+    });
+    const opened = started.find((event) => event.type === "item/started");
+    expect(
+      closed[0]?.type === "item/completed" ? closed[0].item.id : undefined,
+    ).toBe(opened?.type === "item/started" ? opened.item.id : undefined);
+    const grammar = new ThreadEventGrammar();
+    for (const event of [...started, ...closed]) {
+      expect(grammar.observe(event)).toEqual({ kind: "ok" });
+    }
+  });
+
   it("queues accepted input and drains it right after turn/started", () => {
     const assembler = createAssembler();
     expect(

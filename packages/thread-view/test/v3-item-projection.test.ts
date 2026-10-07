@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { TimelineRow, TimelineWorkRow } from "@bb/server-contract";
 import type { ThreadTimelineViewRow } from "../src/index.js";
-import type { ThreadEventItemPresentation } from "@bb/domain";
+import type { ThreadEventItemPresentation, ThreadEventRow } from "@bb/domain";
 import {
   buildTimelineActivityIntentTitles,
   buildTimelineRowTitle,
@@ -112,6 +112,98 @@ const SUBAGENT_PRESENTATION: ThreadEventItemPresentation = {
 };
 
 describe("v3 item projection", () => {
+  it.each([false, true])(
+    "settles a same-path image read once, including interleaved reads: %s",
+    (interleaved) => {
+      const event = createTimelineEventFactory({ threadId: "thread-1" });
+      const completed = event.fileReadCompleted({
+        itemId: "image-1",
+        path: "/workspace/sample.png",
+        createdAt: 3_000,
+      });
+      const presentation: ThreadEventItemPresentation = {
+        label: { pending: "Reading image", completed: "Read image" },
+        icon: { glyph: "Eye" },
+        detail: "Cursor did not report a read result.",
+      };
+      const imageCompleted: ThreadEventRow = {
+        ...completed,
+        data: {
+          ...completed.data,
+          item: {
+            type: "imageView",
+            id: "image-1",
+            path: "/workspace/sample.png",
+            presentation,
+          },
+        },
+      };
+      const rendered = renderTimelineFixture({
+        events: [
+          event.turnStarted({ createdAt: 0 }),
+          event.fileReadStarted({
+            itemId: "image-1",
+            path: "/workspace/sample.png",
+            createdAt: 1_000,
+          }),
+          ...(interleaved
+            ? [
+                event.fileReadStarted({
+                  itemId: "text-1",
+                  path: "/workspace/ordinary.txt",
+                  createdAt: 2_000,
+                }),
+              ]
+            : []),
+          imageCompleted,
+          ...(interleaved
+            ? [
+                event.fileReadCompleted({
+                  itemId: "text-1",
+                  path: "/workspace/ordinary.txt",
+                  createdAt: 4_000,
+                }),
+              ]
+            : []),
+          event.fileReadCompleted({
+            itemId: "other-1",
+            path: "/workspace/other.txt",
+            createdAt: 4_100,
+          }),
+          event.fileReadCompleted({
+            itemId: "other-2",
+            path: "/workspace/more.txt",
+            createdAt: 4_200,
+          }),
+          event.turnCompleted({ createdAt: 5_000 }),
+        ]
+          .sort((a, b) => a.createdAt - b.createdAt)
+          .map((row, seq) => ({ ...row, seq: seq + 1 })),
+        projectionOptions: { threadStatus: "idle", turnMessageDetail: "full" },
+      });
+      const images = workRows(rendered.rows).filter(
+        (row) => "callId" in row && row.callId === "image-1",
+      );
+      expect(images).toHaveLength(1);
+      expect(images[0]).toMatchObject({
+        workKind: "image-view",
+        status: "completed",
+        startedAt: 1_000,
+        completedAt: 3_000,
+        presentation,
+      });
+      const views = buildTimelineViewRows(workRows(rendered.rows), {
+        closedScope: true,
+      });
+      const titles = views.map(plainTitle).join("\n");
+      expect(titles.toLowerCase()).toContain("read 1 image");
+      expect(titles).not.toContain("Viewed");
+      expect(
+        workRows(rendered.rows).some((row) => row.status === "interrupted"),
+      ).toBe(false);
+    },
+  );
+
   it("projects fileRead and search items to file-read and search rows; bare tool calls derive no intent", () => {
     const event = createTimelineEventFactory({ threadId: "thread-1" });
     const v3 = renderTimelineFixture({

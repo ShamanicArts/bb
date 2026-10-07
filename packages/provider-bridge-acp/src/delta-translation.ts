@@ -283,7 +283,7 @@ export function createAcpDeltaTranslator(
       callKey(context, event.toolCallId),
     );
     if (injected === undefined) {
-      const dialectShape = dialect.classifyToolCall?.(event);
+      const dialectShape = dialect.classifyToolCall?.(event, pathOptions);
       if (dialectShape !== undefined) {
         return dialectShape;
       }

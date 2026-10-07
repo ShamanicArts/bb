@@ -1,6 +1,12 @@
 // @vitest-environment jsdom
 
-import { cleanup, render, screen, within } from "@testing-library/react";
+import {
+  cleanup,
+  fireEvent,
+  render,
+  screen,
+  within,
+} from "@testing-library/react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { afterEach, describe, expect, it } from "vitest";
 import type { ReactElement } from "react";
@@ -11,6 +17,7 @@ import {
   commandRow,
   ECHO_RECEIPT_PRESENTATION,
   extensionRow,
+  imageViewRow,
   planStepsRow,
   toolRow,
 } from "@/test/fixtures/thread-timeline-rows";
@@ -56,6 +63,45 @@ afterEach(() => {
 });
 
 describe("presentation-driven timeline rows", () => {
+  it("shows Cursor's omitted read result alongside its image and preserves the missing-file fallback", () => {
+    const row = {
+      ...imageViewRow({ path: "/workspace/sample.png" }),
+      presentation: {
+        label: { pending: "Reading image", completed: "Read image" },
+        icon: { glyph: "Eye" },
+        detail: "Cursor did not report a read result.",
+      },
+    };
+    const view = renderRows(
+      <ThreadTimelineRows
+        threadId="thr_main"
+        threadRuntimeDisplayStatus="idle"
+        workspaceRootPath={undefined}
+        timelineRows={[row]}
+        initialExpanded={new Set([row.id])}
+        resolveImageViewSrc={({ path }) => `/actual-host-file${path}`}
+      />,
+      { providerId: "acp-cursor", pluginId: "provider-acp" },
+    );
+    expect(
+      screen.getByText("Cursor did not report a read result."),
+    ).toBeTruthy();
+    const image = view.container.querySelector("img");
+    expect(image?.getAttribute("src")).toBe(
+      "/actual-host-file/workspace/sample.png",
+    );
+    expect(view.container.textContent).not.toContain("Viewed image");
+    expect(image).not.toBeNull();
+    if (image === null) {
+      throw new Error("Missing requested image preview");
+    }
+    fireEvent.error(image);
+    expect(screen.getByText("Image preview unavailable.")).toBeTruthy();
+    expect(
+      screen.getByText("Cursor did not report a read result."),
+    ).toBeTruthy();
+  });
+
   it("renders an extension row from its declarative base: label, headline, glyph, tint, detail", () => {
     const row = extensionRow({
       presentation: { ...ECHO_RECEIPT_PRESENTATION, icon: { glyph: "Check" } },
