@@ -36,6 +36,17 @@
  * one, and its shape (process-global, unversioned hooks) is still open — see
  * docs/api_to_audit.md.
  *
+ * **Per-bridge classification.** A plugin can instead export
+ * `experimental_createAcpProviderBridge({ experimental_classifyToolCall })`
+ * as `experimental_providerBridge`. The synchronous hook receives the
+ * cumulative ACP tool facts and `{ dialectId, cwd }` before the first item
+ * opens. Its optional item/presentation is validated and copied, selected
+ * once for that call, and cannot change the ACP lifecycle status. Return
+ * undefined to retain the dialect's classification; exceptions or invalid
+ * results also fall back. Each factory owns its sessions and hook; closing
+ * one does not close siblings. Declared extension kinds must belong to the
+ * exporting plugin. The existing unconfigured bridge remains unchanged.
+ *
  * Curated by hand — named exports only, never `export *`. Value exports
  * carry the `experimental_` prefix every new plugin API member ships with
  * (see docs/api_to_audit.md); types are unprefixed. Exports no plugin
@@ -45,6 +56,12 @@
 import type { AcpLaunchSpec } from "@bb/provider-bridge-acp";
 
 export { acpProviderBridge as experimental_acpProviderBridge } from "@bb/provider-bridge-acp";
+export { experimental_createAcpProviderBridge } from "@bb/provider-bridge-acp";
+export type {
+  AcpProviderBridgeOptions,
+  AcpToolClassifier,
+  AcpToolClassificationContext,
+} from "@bb/provider-bridge-acp";
 export type {
   AcpClassifiedToolCall,
   AcpClientRequestOutcome,

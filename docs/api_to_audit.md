@@ -809,7 +809,8 @@ policy at the server boundary before making the helper stable.
 
 ## The ACP bridge kit (`@get-bb/plugin-sdk/provider-bridge/acp`)
 
-**Kept experimental (2026-08-22).** Four members remain, each with an open
+**Kept experimental (2026-10-08).** The existing members and a per-bridge
+factory remain experimental, each with an open
 question below; the fourteen exports no plugin consumed (the dialect
 registry and ids, the raw line handler, the protocol constants, the launch
 profile and the model-catalog helpers) left the public surface in the
@@ -841,9 +842,20 @@ agent before a dialect registry becomes public again — today it has four
 optional hooks (`toolIdentity`, `classifyToolCall`, `handleClientRequest`,
 `maintenance`) and no versioning, so adding a fifth is a silent capability
 change for every dialect; and whether a dialect should be named by value in
-the provider registration instead of by id. Settle whether the bridge itself
-should be a factory rather than a module singleton before a host artifact
-ever needs two configured differently. For `acpLaunchSpecSchema`: the shape
+the provider registration instead of by id. `experimental_createAcpProviderBridge` accepts
+`AcpProviderBridgeOptions.experimental_classifyToolCall`: a synchronous
+`AcpToolClassifier` receiving copied cumulative `AcpToolCallUpdateEvent`
+facts and `AcpToolClassificationContext` (`dialectId`, `cwd`) before the
+first item opens. Its validated, copied item/presentation is fixed for that
+call; ACP lifecycle status remains authoritative. Undefined, thrown or
+invalid results retain the existing dialect/generic classification. Hooks
+and sessions are instance-local; disposal does not stop sibling bridges.
+The original unconfigured singleton remains available. The first consumer,
+provider-acp, selects its own image-read extension for Cursor alone. Before
+stabilizing, validate another consumer and settle whether synchronous
+classification and first-update selection cover its cumulative events;
+confirm extension-kind ownership at ingest and factory disposal guarantees.
+No process-global registry or event interception API is introduced. For `acpLaunchSpecSchema`: the shape
 is stored in the ACP plugin's `customAgents` setting and in registrations'
 bridge options, so a change is a migration of stored agents — decide what a
 plugin is owed when the spec grows a field.

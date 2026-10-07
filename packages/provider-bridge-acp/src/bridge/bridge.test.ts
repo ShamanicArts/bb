@@ -27,7 +27,9 @@ import type {
   CapturedBridgeJsonRpcOutput,
 } from "@bb/provider-bridge-protocol/testing";
 
-import { handleLine } from "./bridge.js";
+import type { AcpToolClassifier } from "../delta-translation.js";
+import { experimental_createAcpProviderBridge, handleLine } from "./bridge.js";
+import type { ProviderBridgeEntry } from "@bb/provider-bridge-protocol/bridge-kit";
 import { ACP_BRIDGE_NO_ACTIVE_TURN_ERROR_CODE } from "../bridge-protocol.js";
 import { ACP_BRIDGE_MCP_SERVER_NAME } from "./tool-proxy-mcp.js";
 
@@ -581,6 +583,86 @@ afterEach(async () => {
 });
 
 describe("acp bridge", () => {
+  it("isolates configured bridge sessions and disposal from sibling and default bridges", async () => {
+    const classify = vi.fn<AcpToolClassifier>(() => ({
+      item: {
+        type: "extension" as const,
+        kind: "provider-acp/test-read",
+        payload: { configured: true },
+      },
+      presentation: {
+        label: { pending: "Configured", completed: "Configured" },
+        icon: { glyph: "Eye" },
+      },
+    }));
+    const configured = experimental_createAcpProviderBridge({
+      experimental_classifyToolCall: classify,
+    });
+    const sibling = experimental_createAcpProviderBridge();
+    const threadId = "same-thread-in-independent-bridges";
+    const request = async (entry: ProviderBridgeEntry, method: string, params: object) => {
+      const id = requestId();
+      entry.handleLine(JSON.stringify({ jsonrpc: "2.0", id, method, params }));
+      return waitForResponse(id);
+    };
+    const start = async (entry: ProviderBridgeEntry) => {
+      const response = await request(entry, "thread/start", {
+        threadId,
+        cwd: workspaceDir,
+        instructionMode: "append",
+        options: executionOptions({ providerOptions: { acpLaunchSpec: acpLaunchSpec({}) } }),
+      });
+      expect(response.error).toBeUndefined();
+      return providerThreadIdOf(response);
+    };
+    const turn = async (entry: ProviderBridgeEntry, providerThreadId: string) => {
+      const offset = output.messages.length;
+      const response = await request(entry, "turn/start", {
+        threadId,
+        providerThreadId,
+        clientRequestId: CLIENT_REQUEST_ID,
+        options: executionOptions({}),
+        input: [{ type: "text", text: "request-permission", mentions: [] }],
+      });
+      expect(response.error).toBeUndefined();
+      await waitFor(() => output.messages.slice(offset).find((message) =>
+        deltaKindsOf(message).includes("turn.boundary")), "isolated turn completion");
+      return output.messages.slice(offset);
+    };
+    try {
+      const configuredId = await start(configured);
+      const siblingId = await start(sibling);
+      expect(configuredId).not.toBe(siblingId);
+      const customized = await turn(configured, configuredId);
+      expect(JSON.stringify(customized)).toContain("provider-acp/test-read");
+      expect(classify).toHaveBeenCalledTimes(1);
+      const normal = await turn(sibling, siblingId);
+      expect(JSON.stringify(normal)).not.toContain("provider-acp/test-read");
+      expect(JSON.stringify(normal)).toContain('"type":"command"');
+      configured.onClose?.();
+      const stopped = await request(configured, "turn/start", {
+        threadId,
+        providerThreadId: configuredId,
+        clientRequestId: CLIENT_REQUEST_ID,
+        options: executionOptions({}),
+        input: [{ type: "text", text: "hi", mentions: [] }],
+      });
+      expect(stopped.error).toBeDefined();
+      expect(JSON.stringify(await turn(sibling, siblingId))).toContain('"type":"command"');
+      const defaultThread = await startThread();
+      const defaultTurn = sendTurnRequest("turn/start", defaultThread.providerThreadId, {
+        input: [{ type: "text", text: "request-permission", mentions: [] }],
+      });
+      expect((await waitForResponse(defaultTurn)).error).toBeUndefined();
+      await waitForTurnCompleted();
+      expect(classify).toHaveBeenCalledTimes(1);
+    } finally {
+      configured.onClose?.();
+      sibling.onClose?.();
+    }
+  });
+
+
   it("answers initialize and lists grouped models without spawning an agent", async () => {
     const initializeId = sendRequest("initialize", {
       protocolVersion: PROVIDER_BRIDGE_PROTOCOL_VERSION,

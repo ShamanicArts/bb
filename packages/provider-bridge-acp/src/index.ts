@@ -1,4 +1,10 @@
 export { experimental_providerBridge as acpProviderBridge } from "./bridge/bridge.js";
+export { experimental_createAcpProviderBridge } from "./bridge/bridge.js";
+export type { AcpProviderBridgeOptions } from "./bridge/bridge.js";
+export type {
+  AcpToolClassifier,
+  AcpToolClassificationContext,
+} from "./delta-translation.js";
 
 export type {
   AcpClientRequestOutcome,

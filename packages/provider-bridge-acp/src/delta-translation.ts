@@ -22,6 +22,10 @@ import type {
   ThreadDelta,
 } from "@bb/provider-bridge-protocol";
 import {
+  deltaItemShapeSchema,
+  deltaPresentationSchema,
+} from "@bb/provider-bridge-protocol";
+import {
   ACP_COMPACTION_COMPLETED_METHOD,
   ACP_COMPACTION_STARTED_METHOD,
   ACP_FS_WRITE_METHOD,
@@ -76,7 +80,18 @@ interface AcpDeltaTranslationContext {
 export interface AcpDeltaTranslatorOptions {
   cwd?: string | undefined;
   dialect?: AcpDialect | undefined;
+  experimental_classifyToolCall?: AcpToolClassifier | undefined;
 }
+
+export interface AcpToolClassificationContext {
+  readonly dialectId: string;
+  readonly cwd: string | undefined;
+}
+
+export type AcpToolClassifier = (
+  event: Readonly<AcpToolCallUpdateEvent>,
+  context: AcpToolClassificationContext,
+) => AcpClassifiedToolCall | undefined;
 
 export interface AcpPermissionToolCallInput {
   toolCallId: string;
@@ -171,6 +186,10 @@ export function createAcpDeltaTranslator(
   const dialect = options.dialect ?? GENERIC_ACP_DIALECT;
   const pathOptions = { cwd: options.cwd };
   const mergedToolCalls = new Map<string, AcpOpenToolCall>();
+  const customClassifications = new Map<
+    string,
+    AcpClassifiedToolCall | undefined
+  >();
 
   let injectedToolsByName = new Map<string, AcpInjectedTool>();
   const injectedToolBindings = new Map<string, AcpInjectedTool>();
@@ -219,6 +238,7 @@ export function createAcpDeltaTranslator(
     for (const [key] of threadCallEntries(context)) {
       mergedToolCalls.delete(key);
       injectedToolBindings.delete(key);
+      customClassifications.delete(key);
     }
     pendingInjectedCalls.delete(context?.threadId ?? "");
   }
@@ -283,6 +303,35 @@ export function createAcpDeltaTranslator(
       callKey(context, event.toolCallId),
     );
     if (injected === undefined) {
+      if (options.experimental_classifyToolCall !== undefined) {
+        const key = callKey(context, event.toolCallId);
+        if (!customClassifications.has(key)) {
+          let custom: AcpClassifiedToolCall | undefined;
+          try {
+            const result = options.experimental_classifyToolCall(
+              Object.freeze(structuredClone(event)),
+              Object.freeze({ dialectId: dialect.id, cwd: options.cwd }),
+            );
+            if (result !== undefined) {
+              custom = structuredClone({
+                item: deltaItemShapeSchema.parse(result.item),
+                presentation: deltaPresentationSchema.parse(
+                  result.presentation,
+                ),
+              });
+            }
+          } catch {
+            console.warn(
+              "ACP tool classification hook failed; using default classification.",
+            );
+          }
+          customClassifications.set(key, custom);
+        }
+        const custom = customClassifications.get(key);
+        if (custom !== undefined) {
+          return custom;
+        }
+      }
       const dialectShape = dialect.classifyToolCall?.(event);
       if (dialectShape !== undefined) {
         return dialectShape;
@@ -518,6 +567,7 @@ export function createAcpDeltaTranslator(
       args.permissionTitle,
     );
     injectedToolBindings.delete(callKey(args.context, args.event.toolCallId));
+    customClassifications.delete(callKey(args.context, args.event.toolCallId));
     const closeFields =
       classified.item.type === "command"
         ? commandCloseFields(args.event, args.status)
