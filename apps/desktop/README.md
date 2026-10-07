@@ -52,6 +52,14 @@ binaries work with Electron without an ABI-specific rebuild. The packaging
 hook opens an in-memory database with Electron before accepting the packaged
 SQLite module; older ABI-specific modules still use the prebuild fallback.
 
+On Linux, the desktop shell enables Chromium's Vulkan feature before Electron
+starts its GPU process. Native browser tabs need this to request a hardware
+WebGPU adapter; without it, `navigator.gpu` can exist while `requestAdapter()`
+returns `null`. Existing `--enable-features` values are preserved. This requires
+a working Vulkan driver and a full desktop restart after installing an updated
+shell; reloading a page does not restart the GPU process. No unsafe WebGPU or
+GPU blocklist override is enabled.
+
 ## Validation
 
 ```bash

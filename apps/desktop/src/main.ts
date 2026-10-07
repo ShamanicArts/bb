@@ -2704,6 +2704,19 @@ async function initializeRuntime(args: InitializeRuntimeArgs): Promise<void> {
 }
 
 async function runDesktopApp(): Promise<void> {
+  if (process.platform === "linux") {
+    const enabledFeatures = app.commandLine
+      .getSwitchValue("enable-features")
+      .split(",")
+      .filter(Boolean);
+    if (!enabledFeatures.includes("Vulkan")) {
+      app.commandLine.appendSwitch(
+        "enable-features",
+        [...enabledFeatures, "Vulkan"].join(","),
+      );
+    }
+  }
+
   ensurePackagedUserShellPath({
     env: process.env,
     isPackaged: app.isPackaged,
