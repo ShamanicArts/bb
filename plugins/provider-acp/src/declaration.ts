@@ -3,6 +3,7 @@ import type {
   PluginProviderDeclaration,
   PluginProviderStrings,
 } from "@get-bb/plugin-sdk";
+import { cursorImageReadPayloadSchema } from "./image-read-payload.js";
 import { ACP_FAMILY, type AcpAgentDefinition } from "./agents.js";
 
 const ACP_BASE_CAPABILITIES: PluginProviderCapabilities = {
@@ -46,6 +47,13 @@ export function acpProviderDeclaration(
     id: agent.id,
     displayName: agent.displayName,
     family: ACP_FAMILY,
+    ...(agent.dialect === "cursor"
+      ? {
+          extensionKinds: {
+            "image-read": { item: cursorImageReadPayloadSchema },
+          },
+        }
+      : {}),
     ...(agent.icon === undefined ? {} : { icon: agent.icon }),
     strings: acpStrings(agent),
     serviceTiers: [...ACP_SERVICE_TIERS],

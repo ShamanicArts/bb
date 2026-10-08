@@ -1,10 +1,19 @@
 import os from "node:os";
 import { experimental_defineHostEntry } from "@get-bb/plugin-sdk/host";
-import { experimental_probeAcpAgent } from "@get-bb/plugin-sdk/provider-bridge/acp";
+import {
+  experimental_createAcpProviderBridge,
+  experimental_probeAcpAgent,
+} from "@get-bb/plugin-sdk/provider-bridge/acp";
 import { acpHostContract } from "./contract.js";
 import { resolveAcpNativeRoots } from "./native-roots/index.js";
 
-export { experimental_acpProviderBridge as experimental_providerBridge } from "@get-bb/plugin-sdk/provider-bridge/acp";
+import { classifyCursorImageRead } from "./image-read.js";
+
+export const experimental_providerBridge = experimental_createAcpProviderBridge(
+  {
+    experimental_classifyToolCall: classifyCursorImageRead,
+  },
+);
 
 export default experimental_defineHostEntry({
   contract: acpHostContract,

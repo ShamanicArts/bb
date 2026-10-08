@@ -78,6 +78,31 @@ async function loadPlugin(options: {
 }
 
 describe("the ACP plugin's registrations", () => {
+  it("reloads and disposes its Cursor extension without changing the other provider declarations", async () => {
+    const host = await loadPlugin({});
+    const originalIds = registeredIds(host);
+    const declarations = host.harness.registrations.providerRegistrations;
+    expect(
+      declarations.find((provider) => provider.id === "acp-cursor")
+        ?.extensionKinds,
+    ).toHaveProperty("image-read");
+    expect(
+      declarations
+        .filter((provider) => provider.id !== "acp-cursor")
+        .every((provider) => provider.extensionKinds === undefined),
+    ).toBe(true);
+    const reloaded = await host.harness.lifecycle.reload(acpProvidersPlugin);
+    expect(registeredIds(host)).toEqual([]);
+    expect(registeredIds(reloaded)).toEqual(originalIds);
+    expect(
+      reloaded.harness.registrations.providerRegistrations.find(
+        (provider) => provider.id === "acp-cursor",
+      )?.extensionKinds,
+    ).toHaveProperty("image-read");
+    await reloaded.harness.lifecycle.dispose();
+    expect(registeredIds(reloaded)).toEqual([]);
+  });
+
   it("registers every shipped agent, and a configured one beside them", async () => {
     const host = await loadPlugin({
       customAgents: customAgents({
